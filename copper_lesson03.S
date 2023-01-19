@@ -17,32 +17,30 @@ Main:
 		move.l	S_VBR,a0			; base memory (0)
 		move.l	#IRQHandler,IRQ3(a0); Set the new vector
 		bsr.b	MoveCopperBar
-
 .wait:
-		cmp.b	#2,rotate_bar
-		beq.b	.rotate
-.1
-		cmp.b	#1,move_bar
-		beq.b	.move
+		cmp.b #1,rotate_bar
+		beq.b .rotate
 
-		btst 	#6,CIAAPRA
-		bne 	.wait
-		bra.b	.exit
+		cmp.b #1,move_bar
+		beq.b .move
 
-.rotate	
-		bsr.b	RotateBars	
-		move.b	#0,rotate_bar
-		bra.b	.1
+		btst #6,CIAAPRA
+		bne.b .wait
+		bra.b .exit
 
-.move
-		bsr.b	MoveCopperBar
-		move.b	#0,move_bar
-		bra.b	.wait
+.rotate:	
+		bsr.b RotateBars
+		move.b #0,rotate_bar
+		bra.b .wait
 
-.exit
-		movem.l (sp)+,d0-a6
+.move:
+		bsr.b MoveCopperBar
+		move.b #0,move_bar
+		bra.b .wait
+
+.exit:
+		movem.l (sp)+,d0-a6			; pop all registers from the stack
 		rts
-
 RotateBars:
 	lea 	copperBar1,a0
 	bsr.b	RotateCopperBar
