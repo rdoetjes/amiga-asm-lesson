@@ -17,38 +17,40 @@ Main:
 		move.l	S_VBR,a0			; base memory (0)
 		move.l	#IRQHandler,IRQ3(a0); Set the new vector
 		bsr.b	MoveCopperBar
+
 .wait:
-		cmp.b #1,rotate_bar
-		beq.b .rotate
+		cmp.b	#2,rotate_bar
+		beq.b	.rotate
+.1
+		cmp.b	#1,move_bar
+		beq.b	.move
 
-		cmp.b #1,move_bar
-		beq.b .move
+		btst 	#6,CIAAPRA
+		bne 	.wait
+		bra.b	.exit
 
-		btst #6,CIAAPRA
-		bne.b .wait
-		bra.b .exit
+.rotate	
+		bsr.b	RotateBars	
+		move.b	#0,rotate_bar
+		bra.b	.1
 
-.rotate:	
-		bsr.b RotateBars
-		move.b #0,rotate_bar
-		bra.b .wait
+.move
+		bsr.b	MoveCopperBar
+		move.b	#0,move_bar
+		bra.b	.wait
 
-.move:
-		bsr.b MoveCopperBar
-		move.b #0,move_bar
-		bra.b .wait
-
-.exit:
-		movem.l (sp)+,d0-a6			; pop all registers from the stack
+.exit
+		movem.l (sp)+,d0-a6
 		rts
+
 RotateBars:
 	lea 	copperBar1,a0
 	bsr.b	RotateCopperBar
 	rts
 
 IRQHandler:
-	movem.l	d0-d7/a0-a6,-(sp)		;store all registers		
-	move.w 	$dff000+INTENAR,a0 		; setup internar to read which interrupt was triggered
+	movem.l	d0-d7/a0-a6,-(sp)			;store all registers		
+	move.w 	$dff000+INTENAR,a0 			; setup internar to read which interrupt was triggered
 	move.w	(a0),d0					; read the triggered interrupt into d0
 
 	btst	#4,d0					; copper (04) triggered than in increment frame count
@@ -60,23 +62,23 @@ IRQHandler:
 	add.b #1,move_bar
 
 .exit:
-	move.w	#$0010,INTREQ(a5)		; Acknowledge the interrupt
-	movem.l	(sp)+,d0-d7/a0-a6		; restore all registers
-	rte								; return from interrupt
+	move.w	#$0010,INTREQ(a5)			; Acknowledge the interrupt
+	movem.l	(sp)+,d0-d7/a0-a6			; restore all registers
+	rte						; return from interrupt
 
 MoveCopperBar:
-	move.b	(copperBar1Center),d3	; load the middle position stored in copperBar1Center into d3
+	move.b	(copperBar1Center),d3			; load the middle position stored in copperBar1Center into d3
 	lea		copperBar1,a1			; load the start address copperBar1 in the copper list, so we can use offsets
 	lea 	sine,a0					; looad the start address of the sine table, so we can use offsets
 
-	move.w	(sineOffset),d0			; the actual offset in the sine tabe that we load and save every frame
-	cmp.w	#endsine-sine,d0		; compare the number of points in the sine if d0 is at the end of the list reset the pointer
+	move.w	(sineOffset),d0				; the actual offset in the sine tabe that we load and save every frame
+	cmp.w	#endsine-sine,d0			; compare the number of points in the sine if d0 is at the end of the list reset the pointer
 	bne.b	.getvalue				; d0 is not pointing at the end of the sine table so we can obtain the sine point
 	move.w	#0,d0					; reset the sineOffset pointer because we were at the end of the sine table
-	move.w	d0,(sineOffset)			; store the reset value in the sineOffset (we will add to it later on)
+	move.w	d0,(sineOffset)				; store the reset value in the sineOffset (we will add to it later on)
 .getvalue:
-	move.b	(a0,d0.w),d2			; read the sine point from the sine table into d2
-	add.w	#1,sineOffset			; add the sineOffset to the next index into the sine table (for the next iteration)
+	move.b	(a0,d0.w),d2				; read the sine point from the sine table into d2
+	add.w	#1,sineOffset				; add the sineOffset to the next index into the sine table (for the next iteration)
 
 	move.b	#9,d0					; the bar has 9 lines to move
 .move:
@@ -85,25 +87,26 @@ MoveCopperBar:
 	add.b	#1,d3					; add 1 to d3 for the next line we are going to copy; in essence moving to the next line to move
 	move.b  d1,(a1)					; store the new location in to the copper table wait line
 	add.l	#8,a1					; move to the next copper table wait line location (8 bytes away)
-	dbf		d0,.move				; decrement d0 (number of lines left to move) and move the next line 
+	dbf d0,.move					; decrement d0 (number of lines left to move) and move the next line 
 	rts
 
 RotateCopperBar:
-		move.w	6(a0),d7			;remember the color so we can add it to the back
-		moveq	#7,d1				; we need to copy 3 more bar colors upwards
-		add 	#14,a0				; set the offset in a0 to the next color to read
+	move.w	6(a0),d7				;remember the color so we can add it to the back
+	moveq	#7,d1					; we need to copy 3 more bar colors upwards
+	add 	#14,a0					; set the offset in a0 to the next color to read
 .rotate:
-		move.w	(a0),d0				;read the color into d0
-		move.w	d0,-8(a0)			;copy that color we just read 8 bytes backwards from current ptr to overwrite the previou
-		add 	#8,a0				;add 8 bytes to get to the next offset
-		dbf		d1,.rotate			;decrement d1 and continue until 0
-		move.w	d7,-8(a0)			;copy that first saved color at the back of our colorBar
-		rts
+	move.w	(a0),d0					;read the color into d0
+	move.w	d0,-8(a0)				;copy that color we just read 8 bytes backwards from current ptr to overwrite the previou
+	add 	#8,a0					;add 8 bytes to get to the next offset
+	dbf	d1,.rotate				;decrement d1 and continue until 0
+	move.w	d7,-8(a0)				;copy that first saved color at the back of our colorBar
+	rts
 
 ;-----------------------------------------------------------
 rotate_bar:			dc.b	$0
 move_bar:			dc.b	$0
-copperBar1Center:	dc.b 	$ae	
+copperBar1Center:		dc.b 	$ae	
+sineOffset:			dc.w	$00
 ;-----------------------------------------------------------
 
 	SECTION DATA,DATA_C
@@ -136,9 +139,6 @@ Copperlist:
 		;space after ther bar
 		dc.w INTREQ,$8010	; Trigger Copper interrupt	
 		dc.w $ffff,$fffe
-	
-sineOffset:
-		dc.b	0
 
 	Include "Include/sine.s"
 
