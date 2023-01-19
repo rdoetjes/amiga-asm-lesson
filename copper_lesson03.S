@@ -9,13 +9,13 @@
 
 Main:		
 		movem.l d0-a6,-(sp)
-		lea 	$dff000,a5			; set the hardware registers base address to a5
+		lea 	$dff000,a5		; set the hardware registers base address to a5
 		lea.l	Copperlist,a0		; set the coppper list pointer in a0
 		move.l	a0,COP1LC(a5)		; Set the copper list pointer into teh COP1LC (copperlist one hardware address), effectively move.w a0,$dff080
 		move.w  #$8080,DMACON(a5)	; enable bit 7 (copper DMA active) and 15 (DMA active), effectively move.w #$8080,$dff096
 		move.w	#$8010,INTENA(a5)	; enable copper interrupt
-		move.l	S_VBR,a0			; base memory (0)
-		move.l	#IRQHandler,IRQ3(a0); Set the new vector
+		move.l	S_VBR,a0		; base memory (0)
+		move.l	#IRQHandler,IRQ3(a0)	; Set the new vector
 		bsr.b	MoveCopperBar
 
 .wait:
